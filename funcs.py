@@ -1,5 +1,7 @@
 import enum
-from math import sin, cos, e
+import math
+
+import numpy as np
 
 
 class Function(enum.Enum):
@@ -9,15 +11,15 @@ class Function(enum.Enum):
 
 
 def func_1(x: float) -> float:
-    return 10 * sin(x)
+    return 10 * np.sin(x)
 
 
 def func_2(x: float) -> float:
-    return 10 * sin((2 ** x + e ** (cos(abs(x)))))
+    return 10 * np.sin((2 ** x + math.e ** (np.cos(abs(x)))))
 
 
 def func_3(x: float) -> float:
-    return 10 / sin(x)
+    return 10 / np.sin(x)
 
 
 def calculate_func(func: Function, start, end, num) -> list:
