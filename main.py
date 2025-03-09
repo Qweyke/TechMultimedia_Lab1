@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from mpl_toolkits.mplot3d import Axes3D
 
-from funcs import calculate_func, Function
 from gui import Ui_MainWindow
 
 
@@ -25,15 +25,9 @@ class MainWindow(QMainWindow):
                     int(QApplication.primaryScreen().geometry().height() * 0.7))
 
         self.figure = plt.figure()
-        self.subplot1 = self.figure.add_subplot(121, projection="3d")
-        self.subplot2 = self.figure.add_subplot(122, projection="3d")
+        self.plot_area_1 = self.figure.add_subplot(111, projection="3d")
 
-        x_list = np.linspace(0, 10, 100)
-        y_list = np.linspace(0, 10, 100)
-        z_list = calculate_func(Function.sin_mult, 1, 1000, 100)
-
-        self.subplot1.scatter(x_list, y_list, z_list)
-        self.subplot2.scatter(x_list, y_list, z_list)
+        self.plot_cone(self.plot_area_1, 5, "red", 1)
 
         self.figure_canvas = FigureCanvasQTAgg(self.figure)
 
@@ -44,10 +38,22 @@ class MainWindow(QMainWindow):
 
         self.gui.plot_wdgt.setLayout(layout)
 
-    #     self.gui.plot_btn.clicked.connect(lambda: self. plot_func(Function.sin_mult, 10))
-    #
-    # def plot_func(self, func_type, start, end, step):
-    #     print(calculate_func(func_type, start, end, step))
+    def plot_cone(self, plot_area: Axes3D, cone_height: float, color: str, density: float):
+        CIRCLE_BASE_RADIUS = 1
+        PRECISE = 100
+
+        # Polar coord creation
+        radius_list = np.linspace(0, CIRCLE_BASE_RADIUS, PRECISE)
+        theta_in_radians_list = np.linspace(0, 2 * np.pi, PRECISE)
+
+        # Polar coord meshgrid (2 matrix for all combs of theta and r)
+        r_matrix, theta_matrix = np.meshgrid(radius_list, theta_in_radians_list)
+
+        x_coord_list = r_matrix * np.cos(theta_matrix)
+        y_coord_list = r_matrix * np.sin(theta_matrix)
+        z_coord_list = cone_height - (cone_height / CIRCLE_BASE_RADIUS) * r_matrix
+
+        plot_area.plot_surface(x_coord_list, y_coord_list, z_coord_list, color=color, alpha=density)
 
 
 app = QApplication(sys.argv)
