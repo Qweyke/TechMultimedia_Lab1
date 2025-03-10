@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 # PySide6 building files
-*.ui
+#*.ui
 
 # Distribution / packaging
 .Python
