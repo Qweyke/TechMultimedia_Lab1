@@ -3,7 +3,7 @@ from gui import Ui_MainWindow
 import sys
 import math
 
-from test import PlotCanvas
+from chart import PlotCanvas
 
 
 class MainApp(QMainWindow):

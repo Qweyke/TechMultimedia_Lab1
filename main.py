@@ -1,5 +1,3 @@
-"""pyside6-uic gui.py -o canvas.ui"""
-
 import sys
 
 import matplotlib.pyplot as plt
