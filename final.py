@@ -149,18 +149,30 @@ class ChartWidget(QWidget):
                 painter.setPen(QPen(QColor(0, 0, 0), 0.5))
                 painter.drawPolygon(cone)
 
-                # Draw shadow
-                shadow = QPolygon([top_point, left_point, QPoint(top_point.x(), left_point.y())])
-                painter.setBrush(QBrush(QColor(30, 30, 30, 80)))
-                painter.drawPolygon(shadow)
-
-                # Ellipse for base of cone
+                # Преобразуем центр и радиусы
                 cx, cy = self._to_pyside_coords(x, 0)
                 rx = abs(left_point.x() - right_point.x()) // 2
-
-                # 20% of triangle height is cone's base, ry = 20 / 2 = 10%
                 ry = int(0.1 * abs(y) * self._scale * (self._axis_area.height() / (2 * self._logical_range_y)))
-                painter.drawEllipse(QPoint(cx, cy), rx, ry)
+
+                # QRect, in ellipse
+                rect = QRect(cx - rx, cy - ry, 2 * rx, 2 * ry)
+
+                # Left side
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QBrush(color.darker(150)))
+                painter.drawPie(rect, 180 * 16, 90 * 16)  # from 180° to 270° left
+
+                # Right side
+                # painter.setPen(QPen(QColor(0, 0, 0), 0.5))
+                painter.setBrush(QBrush(color))
+                painter.drawPie(rect, 270 * 16, 90 * 16)
+
+                # Draw shadow
+                shadow = QPolygon([top_point, left_point, QPoint(top_point.x(), left_point.y())])
+                painter.setBrush(QBrush(color.darker(150)))
+                painter.drawPolygon(shadow)
+
+
 
             except Exception as e:
                 print(f"Error at x={x}: {e}")
