@@ -1,4 +1,6 @@
+import math
 import sys
+from functools import partial
 
 from PIL.ImageQt import QPixmap
 from PySide6.QtCore import QRect, QPoint
@@ -58,6 +60,8 @@ class ChartWidget(QWidget):
         self._center_coord_x = 0
         self._center_coord_y = 0
 
+        self._last_func = None
+
     def paintEvent(self, event, /):
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self._pixmap)
@@ -79,6 +83,7 @@ class ChartWidget(QWidget):
 
         self._pixmap.fill(QColor(224, 224, 224))
         self._draw_coord_grid()
+        self._last_func()
         self.update()
 
     def clear_canvas(self):
@@ -106,36 +111,62 @@ class ChartWidget(QWidget):
         self.update()
 
     def draw_function(self, func, x_start, x_end, step=0.1):
+        self._last_func = partial(self.draw_function, func, x_start, x_end, step)
+
         painter = QPainter(self._pixmap)
         painter.setClipRect(self._axis_area)
         pen = QPen(Qt.blue, 2)
         painter.setPen(pen)
-
+        
         x = x_start
         prev = None
         while x <= x_end:
             try:
                 y = func(x)
                 px, py = self._to_pyside_coords(x, y)
-                if prev:
-                    painter.drawLine(prev[0], prev[1], px, py)
-                prev = (px, py)
-            except:
-                pass
+                if math.isfinite(y):
+                    if prev is not None:
+                        if abs(prev[1] - py) < self.height():
+                            painter.drawLine(prev[0], prev[1], px, py)
+                    prev = (px, py)
+                else:
+                    prev = None
+
+            except (ZeroDivisionError, ValueError, OverflowError):
+                prev = None
+
+            except Exception as ex:
+                print(f"Error at x={x}: {ex}")
+
             x += step
 
         painter.end()
         self.update()
 
     def draw_function_cones(self, func, x_start, x_end, color=QColor(80, 160, 255), step=0.1):
+        self._last_func = partial(self.draw_function_cones, func, x_start, x_end, color, step)
+
         painter = QPainter(self._pixmap)
         painter.setClipRect(self._axis_area)
 
         cone_width = 1.0
         x = x_start
+        prev_y = None
+        max_y_jump = (self._logical_range_y * 0.3)
         while x <= x_end:
             try:
                 y = func(x)
+
+                if not math.isfinite(y):
+                    prev_y = None
+                    x += step
+                    continue
+
+                if prev_y is not None and abs(y - prev_y) > max_y_jump:
+                    prev_y = y
+                    x += step
+                    continue
+
                 qt_top_x, qt_top_y = self._to_pyside_coords(x, y)
                 qt_left_x, qt_left_y = self._to_pyside_coords(x - cone_width / 2, 0)
                 qt_right_x, qt_right_y = self._to_pyside_coords(x + cone_width / 2, 0)
@@ -163,7 +194,6 @@ class ChartWidget(QWidget):
                 painter.drawPie(rect, 180 * 16, 90 * 16)  # from 180° to 270° left
 
                 # Right side
-                # painter.setPen(QPen(QColor(0, 0, 0), 0.5))
                 painter.setBrush(QBrush(color))
                 painter.drawPie(rect, 270 * 16, 90 * 16)
 
@@ -172,10 +202,11 @@ class ChartWidget(QWidget):
                 painter.setBrush(QBrush(color.darker(150)))
                 painter.drawPolygon(shadow)
 
-
-
+            except (ZeroDivisionError, ValueError, OverflowError):
+                prev_y = None
             except Exception as e:
                 print(f"Error at x={x}: {e}")
+
             x += step
 
         painter.end()

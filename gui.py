@@ -15,9 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QHBoxLayout,
-    QLabel, QLineEdit, QMainWindow, QPushButton,
-    QSizePolicy, QSpinBox, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QDoubleSpinBox, QFrame,
+    QHBoxLayout, QLabel, QLineEdit, QMainWindow,
+    QPushButton, QSizePolicy, QSpinBox, QVBoxLayout,
+    QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -110,10 +111,12 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addWidget(self.step_lbl)
 
-        self.step_spinBox = QSpinBox(self.centralwidget)
+        self.step_spinBox = QDoubleSpinBox(self.centralwidget)
         self.step_spinBox.setObjectName(u"step_spinBox")
-        self.step_spinBox.setMaximum(2)
-        self.step_spinBox.setValue(1)
+        self.step_spinBox.setMinimum(0.010000000000000)
+        self.step_spinBox.setMaximum(9999999999999999635896294965248.000000000000000)
+        self.step_spinBox.setSingleStep(0.010000000000000)
+        self.step_spinBox.setValue(1.000000000000000)
 
         self.verticalLayout.addWidget(self.step_spinBox)
 
