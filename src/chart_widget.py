@@ -3,6 +3,8 @@ from PySide6.QtCore import QRect
 from PySide6.QtGui import QPainter, QPen, Qt, QColor
 from PySide6.QtWidgets import QWidget
 
+from custom_logger import dpi_logger
+
 BASE_CELL_SIZE = 40
 
 
@@ -10,8 +12,8 @@ class ChartWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # Create canvas and rectangle for plotting
-        self._pixmap = QPixmap(self.width(), self.height())
+        # Object-plugs for chart and for plotting area
+        self._pixmap = QPixmap()
         self._plotting_rect = QRect()
 
         # Qt's real pixel coords
@@ -24,17 +26,18 @@ class ChartWidget(QWidget):
         self._cell_scale_ratio_x = 1
         self._cell_scale_ratio_y = 1
 
+    def resizeEvent(self, event):
+        dpi_logger.debug("Resize event")
+        self._pixmap = QPixmap(self.width(), self.height())
+        self._pixmap.fill(QColor(224, 224, 224))
+        self._draw_axis_grid()
+
+    # Draw event for pre-drawn pixmap
     def paintEvent(self, event):
+        dpi_logger.debug("Paint event")
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self._pixmap)
         painter.end()
-
-    def resizeEvent(self, event):
-        self.clear_canvas()
-
-    def clear_canvas(self):
-        self._pixmap.fill(QColor(224, 224, 224))
-        self._draw_coord_grid()
 
     def _to_qt_coordinates(self, logic_x, logic_y) -> tuple[int, int]:
         pixel_x = self._qt_center_x + (logic_x * self._cell_size_x)
@@ -42,13 +45,15 @@ class ChartWidget(QWidget):
         return int(pixel_x), int(pixel_y)
 
     def _to_logic_coordinates(self, pixel_x, pixel_y) -> tuple[float, float]:
-        logic_x = pixel_x / self._cell_size_x
-        logic_y = pixel_y / self._cell_size_y
+        logic_x = (pixel_x - self._qt_center_x) / self._cell_size_x
+        logic_y = (pixel_y - self._qt_center_y) / self._cell_size_y
         return logic_x, logic_y
 
-    def draw_function_test(self, func, left_x: float, right_x: float, step: float = 1, line_thickness: int = 2):
-        print("Func")
+    def clear_canvas(self):
+        dpi_logger.debug("Clear canvas")
+        self._pixmap.fill(QColor(224, 224, 224))
 
+    def draw_function_test(self, func, left_x: float, right_x: float, step: float = 1, line_thickness: int = 2):
         def calculate_cell_size():
             # Calculate cell x-size
             points_num = right_x - left_x
@@ -60,6 +65,9 @@ class ChartWidget(QWidget):
             y_bottom_value = y_sorted[0]
             self._cell_size_y = self._plotting_rect.height() / (y_top_value - y_bottom_value)
 
+            dpi_logger.debug(f"Cell size: x - {self._cell_size_x}; y - {self._cell_size_y}")
+
+        dpi_logger.debug("Function plotting")
         # Create painter and restrict its action to plotting_rect area
         painter = QPainter(self._pixmap)
         painter.setClipRect(self._plotting_rect)
@@ -73,13 +81,14 @@ class ChartWidget(QWidget):
             try:
                 y_vals_list.append(func(x))
             except Exception as ex:
-                print(f"Error at x={x}: {ex}")
+                dpi_logger.debug(f"Error at x={x}: {ex}")
 
             x += step
 
         calculate_cell_size()
-        self._draw_coord_grid()
+        self._draw_axis_grid()
 
+        x = left_x
         prev = None
         while x <= right_x:
             try:
@@ -90,31 +99,33 @@ class ChartWidget(QWidget):
                 prev = (pixel_x, pixel_y)
 
             except Exception as ex:
-                print(f"Error at x={x}: {ex}")
+                dpi_logger.debug(f"Error at x={x}: {ex}")
 
             x += step
 
         painter.end()
         self.update()
 
-    def _draw_coord_grid(self):
-        print("Grid")
+    def _draw_axis_grid(self):
+        dpi_logger.debug("Creating axis grid")
         painter = QPainter(self._pixmap)
-        thickness = 4
+        thickness = 2
         border_pen = QPen(Qt.black, thickness, Qt.SolidLine)
         painter.setPen(border_pen)
 
         # Create area for chart plotting (axis rectangle for plotting)
         start_x = int(self.width() * 0.05)
-        start_y = int(self.height() * 0.05)
+
+        start_y = int(self.height() * 0.01)
+        indent_y = int(self.height() * 0.07)
+
         self._plotting_rect = QRect(
             start_x,
             start_y,
-            self.width() - start_x * 2,
-            self.height() - start_y * 2
+            self.width() - start_x - start_y,  # Add the same indent as Y has at the top
+            self.height() - indent_y
         )
         painter.drawRect(self._plotting_rect)
-        painter.end()
 
         # Calculate current center coordinates
         self._qt_center_x = self._plotting_rect.left() + int(self._plotting_rect.width() / 2)
@@ -134,9 +145,11 @@ class ChartWidget(QWidget):
             logic_x, _ = self._to_logic_coordinates(x, 0)
             text = f"{logic_x:.1f}"
             text_width = font_metrics.horizontalAdvance(text)
-            text_x = int(x - text_width / 2)
-            text_y = int(self._plotting_rect.bottom() + font_metrics.height() + (self._plotting_rect.height() * 0.05))
-            painter.drawText(text_x, text_y, text)
+            # Calculate start pos for text, shift it left by half of its width
+            text_baseline_x = int(x - text_width / 2)
+            text_baseline_y = int(
+                self._plotting_rect.bottom() + font_metrics.height() + (self._plotting_rect.height() * 0.005))
+            painter.drawText(text_baseline_x, text_baseline_y, text)
 
             # Advance further
             x += self._cell_size_x
@@ -150,12 +163,12 @@ class ChartWidget(QWidget):
             _, logic_y = self._to_logic_coordinates(0, y)
             text = f"{logic_y:.1f}"
             text_width = font_metrics.horizontalAdvance(text)
-            text_x = int(self._plotting_rect.left() - text_width - (self._plotting_rect.width() * 0.05))
-            text_y = int(self._plotting_rect.bottom() - y + (font_metrics.ascent() / 2))
-            painter.drawText(text_x, text_y, text)
+            text_baseline_x = int(self._plotting_rect.left() - text_width - (self._plotting_rect.width() * 0.005))
+            text_baseline_y = int((y + font_metrics.ascent() / 2))
+            painter.drawText(text_baseline_x, text_baseline_y, text)
 
             # Advance further
-            y += self._cell_size_y
+            y -= self._cell_size_y
 
         painter.end()
         self.update()
@@ -196,7 +209,7 @@ class ChartWidget(QWidget):
     #             prev = None
     #
     #         except Exception as ex:
-    #             print(f"Error at x={x}: {ex}")
+    #             dpi_logger.debug(f"Error at x={x}: {ex}")
     #
     #         x += step
     #
@@ -265,7 +278,7 @@ class ChartWidget(QWidget):
     #         except (ZeroDivisionError, ValueError, OverflowError):
     #             prev_y = None
     #         except Exception as e:
-    #             print(f"Error at x={x}: {e}")
+    #             dpi_logger.debug(f"Error at x={x}: {e}")
     #
     #         x += step
     #
