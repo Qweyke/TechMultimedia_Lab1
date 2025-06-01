@@ -23,18 +23,56 @@ class ChartWidget(QWidget):
         self._cell_size_x = BASE_CELL_SIZE
         self._cell_size_y = BASE_CELL_SIZE
 
-        self._cell_scale_ratio_x = 1
-        self._cell_scale_ratio_y = 1
-
     def resizeEvent(self, event):
         dpi_logger.debug("Resize event")
         self._pixmap = QPixmap(self.width(), self.height())
         self._pixmap.fill(QColor(224, 224, 224))
-        self._draw_axis_grid()
+
+        # Create area for chart plotting (axis rectangle for plotting)
+        start_x = int(self.width() * 0.05)
+        dpi_logger.debug(f"Start x coord: {start_x}")
+
+        start_y = int(self.height() * 0.01)
+        dpi_logger.debug(f"Start y coord: {start_y}")
+
+        indent_y = int(self.height() * 0.07)
+
+        self._plotting_rect = QRect(
+            start_x,
+            start_y,
+            self.width() - start_x - start_y,  # Add the same indent as Y has at the top
+            self.height() - indent_y
+        )
+
+        # Calculate current center coordinates
+        self._qt_center_x = self._plotting_rect.left() + int(self._plotting_rect.width() / 2)
+        self._qt_center_y = self._plotting_rect.top() + int(self._plotting_rect.height() / 2)
+
+        # self._create_axis_grid()
 
     # Draw event for pre-drawn pixmap
-    def paintEvent(self, event):
+    def paintEvent(self, event, /):
+        def handle_invalid_size():
+            pixmap_size = self._pixmap.size()
+            rect_size = self._plotting_rect.size()
+
+            if self._pixmap.isNull():
+                raise ValueError("Pixmap is null")
+
+            if pixmap_size.width() <= 0 or pixmap_size.height() <= 0:
+                raise ValueError(f"Pixmap size is invalid: {pixmap_size}")
+
+            if rect_size.width() <= 0 or rect_size.height() <= 0:
+                raise ValueError(f"Plotting rect size is invalid: {rect_size}")
+
         dpi_logger.debug("Paint event")
+
+        try:
+            handle_invalid_size()
+        except Exception as ex:
+            dpi_logger.error(ex)
+            return
+
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self._pixmap)
         painter.end()
@@ -52,28 +90,23 @@ class ChartWidget(QWidget):
     def clear_canvas(self):
         dpi_logger.debug("Clear canvas")
         self._pixmap.fill(QColor(224, 224, 224))
+        self.update()
+
+    def _calculate_cell_size_for_func(self, left_x, right_x, step, y_vals: list[float]):
+        # Calculate cell x-size
+        points_num = right_x - left_x
+        self._cell_size_x = self._plotting_rect.width() / points_num / step
+
+        # Calculate cell y-size
+        y_sorted = sorted(y_vals)
+        y_top_value = y_sorted[int(len(y_sorted) * 0.9) - 1]
+        y_bottom_value = y_sorted[0]
+        self._cell_size_y = self._plotting_rect.height() / (y_top_value - y_bottom_value)
+
+        dpi_logger.debug(f"Cell size: x - {self._cell_size_x}; y - {self._cell_size_y}")
 
     def draw_function_test(self, func, left_x: float, right_x: float, step: float = 1, line_thickness: int = 2):
-        def calculate_cell_size():
-            # Calculate cell x-size
-            points_num = right_x - left_x
-            self._cell_size_x = self._plotting_rect.width() / points_num / step
-
-            # Calculate cell y-size
-            y_sorted = sorted(y_vals_list)
-            y_top_value = y_sorted[int(len(y_sorted) * 0.9) - 1]
-            y_bottom_value = y_sorted[0]
-            self._cell_size_y = self._plotting_rect.height() / (y_top_value - y_bottom_value)
-
-            dpi_logger.debug(f"Cell size: x - {self._cell_size_x}; y - {self._cell_size_y}")
-
         dpi_logger.debug("Function plotting")
-        # Create painter and restrict its action to plotting_rect area
-        painter = QPainter(self._pixmap)
-        painter.setClipRect(self._plotting_rect)
-        pen = QPen(Qt.blue, line_thickness, Qt.SolidLine)
-        painter.setPen(pen)
-
         x = left_x
         y_vals_list = []
 
@@ -81,12 +114,18 @@ class ChartWidget(QWidget):
             try:
                 y_vals_list.append(func(x))
             except Exception as ex:
-                dpi_logger.debug(f"Error at x={x}: {ex}")
+                dpi_logger.error(f"Error at x={x}: {ex}")
 
             x += step
 
-        calculate_cell_size()
-        self._draw_axis_grid()
+        self._calculate_cell_size_for_func(left_x, right_x, step, y_vals_list)
+        self._create_axis_grid()
+
+        # Create painter and restrict its action to plotting_rect area
+        painter = QPainter(self._pixmap)
+        painter.setClipRect(self._plotting_rect)
+        pen = QPen(Qt.blue, line_thickness, Qt.SolidLine)
+        painter.setPen(pen)
 
         x = left_x
         prev = None
@@ -95,7 +134,9 @@ class ChartWidget(QWidget):
                 y = func(x)
                 pixel_x, pixel_y = self._to_qt_coordinates(x, y)
 
-                painter.drawLine(prev[0], prev[1], pixel_x, pixel_y)
+                if prev is not None:
+                    painter.drawLine(prev[0], prev[1], pixel_x, pixel_y)
+
                 prev = (pixel_x, pixel_y)
 
             except Exception as ex:
@@ -106,30 +147,14 @@ class ChartWidget(QWidget):
         painter.end()
         self.update()
 
-    def _draw_axis_grid(self):
-        dpi_logger.debug("Creating axis grid")
+    def _create_axis_grid(self):
+        dpi_logger.debug(f"Creating axis grid, cell: [{self._cell_size_x}; {self._cell_size_y}]")
+        self.clear_canvas()
         painter = QPainter(self._pixmap)
         thickness = 2
         border_pen = QPen(Qt.black, thickness, Qt.SolidLine)
         painter.setPen(border_pen)
-
-        # Create area for chart plotting (axis rectangle for plotting)
-        start_x = int(self.width() * 0.05)
-
-        start_y = int(self.height() * 0.01)
-        indent_y = int(self.height() * 0.07)
-
-        self._plotting_rect = QRect(
-            start_x,
-            start_y,
-            self.width() - start_x - start_y,  # Add the same indent as Y has at the top
-            self.height() - indent_y
-        )
         painter.drawRect(self._plotting_rect)
-
-        # Calculate current center coordinates
-        self._qt_center_x = self._plotting_rect.left() + int(self._plotting_rect.width() / 2)
-        self._qt_center_y = self._plotting_rect.top() + int(self._plotting_rect.height() / 2)
 
         # Prepare to draw grid lines
         grid_pen = QPen(Qt.black, 1, Qt.DotLine)

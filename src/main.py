@@ -22,7 +22,8 @@ class MainApp(QMainWindow):
 
         # Connect btns
         self.ui.plot_btn.clicked.connect(self._plot_func)
-        # self.ui.clear_btn.clicked.connect(self._chart_widget.clear_canvas)
+        self.ui.clear_btn.clicked.connect(self._chart_widget.clear_canvas)
+        self.ui.center_btn.clicked.connect(self._chart_widget._create_axis_grid)
 
     def _plot_func(self):
         x = symbols('x')
