@@ -162,22 +162,53 @@ class ChartWidget(QWidget):
         font_metrics = painter.fontMetrics()
 
         # Draw (vertical or 'x') grid lines
-        x = self._plotting_rect.left()
-        while x <= self._plotting_rect.right():
-            painter.drawLine(int(x), self._plotting_rect.top(), int(x), self._plotting_rect.bottom())
+        x_right = self._qt_center_x
+        x_left = self._qt_center_x
+        halves_rows_num = int(self._plotting_rect.width() / self._cell_size_x / 2)
+        text_baseline_y = int(
+            self._plotting_rect.bottom() + font_metrics.height() + (self._plotting_rect.height() * 0.005))
+
+        for i in range(-halves_rows_num, halves_rows_num + 1):
+            # Draw lines
+
+            painter.drawLine(int(x_right), self._plotting_rect.top(), int(x_right), self._plotting_rect.bottom())
+            painter.drawLine(int(x_left), self._plotting_rect.top(), int(x_left), self._plotting_rect.bottom())
 
             # Draw cell's legend
-            logic_x, _ = self._to_logic_coordinates(x, 0)
-            text = f"{logic_x:.1f}"
-            text_width = font_metrics.horizontalAdvance(text)
-            # Calculate start pos for text, shift it left by half of its width
-            text_baseline_x = int(x - text_width / 2)
-            text_baseline_y = int(
-                self._plotting_rect.bottom() + font_metrics.height() + (self._plotting_rect.height() * 0.005))
-            painter.drawText(text_baseline_x, text_baseline_y, text)
+            logic_x_right, _ = self._to_logic_coordinates(x_right, 0)
+            logic_x_left, _ = self._to_logic_coordinates(x_left, 0)
 
-            # Advance further
-            x += self._cell_size_x
+            text_r = f"{logic_x_right:.1f}"
+            text_l = f"{logic_x_left:.1f}"
+
+            text_width_r = font_metrics.horizontalAdvance(text_r)
+            text_width_l = font_metrics.horizontalAdvance(text_l)
+
+            # Calculate start pos for text, shift it left by half of its width
+            text_baseline_x_r = int(x_right - text_width_r / 2)
+            text_baseline_x_l = int(x_left - text_width_l / 2)
+
+            painter.drawText(text_baseline_x_r, text_baseline_y, text_r)
+            painter.drawText(text_baseline_x_l, text_baseline_y, text_r)
+
+            x_right += self._cell_size_x
+            x_left -= self._cell_size_x
+
+        # while x <= self._plotting_rect.right():
+        #     painter.drawLine(int(x), self._plotting_rect.top(), int(x), self._plotting_rect.bottom())
+        #
+        #     # Draw cell's legend
+        #     logic_x, _ = self._to_logic_coordinates(x, 0)
+        #     text = f"{logic_x:.1f}"
+        #     text_width = font_metrics.horizontalAdvance(text)
+        #     # Calculate start pos for text, shift it left by half of its width
+        #     text_baseline_x = int(x - text_width / 2)
+        #     text_baseline_y = int(
+        #         self._plotting_rect.bottom() + font_metrics.height() + (self._plotting_rect.height() * 0.005))
+        #     painter.drawText(text_baseline_x, text_baseline_y, text)
+        #
+        #     # Advance further
+        #     x += self._cell_size_x
 
         # Draw (horizontal or 'y') grid lines
         y = self._plotting_rect.bottom()
