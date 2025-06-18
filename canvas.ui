@@ -54,6 +54,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QPushButton" name="grid_btn">
+        <property name="text">
+         <string>Build std grid</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="cones_checkBox">
         <property name="enabled">
          <bool>true</bool>

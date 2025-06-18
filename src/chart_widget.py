@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QWidget
 from custom_logger import dpi_logger
 
 BASE_CELL_SIZE = 40
+Y_RANGE_INDENT = 1.1
 
 
 class ChartWidget(QWidget):
@@ -84,12 +85,15 @@ class ChartWidget(QWidget):
 
     def _to_logic_coordinates(self, pixel_x, pixel_y) -> tuple[float, float]:
         logic_x = (pixel_x - self._qt_center_x) / self._cell_size_x
-        logic_y = (pixel_y - self._qt_center_y) / self._cell_size_y
+        # Invert to qt coords
+        logic_y = -(pixel_y - self._qt_center_y) / self._cell_size_y
         return logic_x, logic_y
 
     def clear_canvas(self):
         dpi_logger.debug("Clear canvas")
         self._pixmap.fill(QColor(224, 224, 224))
+        self._cell_size_x = BASE_CELL_SIZE
+        self._cell_size_y = BASE_CELL_SIZE
         self.update()
 
     def _calculate_cell_size_for_func(self, left_x, right_x, step, y_vals: list[float]):
@@ -99,9 +103,11 @@ class ChartWidget(QWidget):
 
         # Calculate cell y-size
         y_sorted = sorted(y_vals)
-        y_top_value = y_sorted[int(len(y_sorted) * 0.9) - 1]
+        y_top_value = y_sorted[int(len(y_sorted)) - 1]
         y_bottom_value = y_sorted[0]
-        self._cell_size_y = self._plotting_rect.height() / (y_top_value - y_bottom_value)
+
+        y_range = y_top_value - y_bottom_value
+        self._cell_size_y = self._plotting_rect.height() / (y_range * Y_RANGE_INDENT)
 
         dpi_logger.debug(f"Cell size: x - {self._cell_size_x}; y - {self._cell_size_y}")
 
@@ -148,8 +154,12 @@ class ChartWidget(QWidget):
         self.update()
 
     def _create_axis_grid(self):
-        dpi_logger.debug(f"Creating axis grid, cell: [{self._cell_size_x}; {self._cell_size_y}]")
-        self.clear_canvas()
+        dpi_logger.debug(
+            f"Creating axis grid, [{self._plotting_rect.width()}; {self._plotting_rect.height()}], cell: [{self._cell_size_x}; {self._cell_size_y}]")
+
+        # Clear prev drawings
+        self._pixmap.fill(QColor(224, 224, 224))
+
         painter = QPainter(self._pixmap)
         thickness = 2
         border_pen = QPen(Qt.black, thickness, Qt.SolidLine)
@@ -184,20 +194,22 @@ class ChartWidget(QWidget):
             painter.drawText(text_baseline_x, text_baseline_y, text)
 
         # Draw (horizontal or 'y') grid lines
-        y = self._plotting_rect.bottom()
-        while y >= self._plotting_rect.top():
+        halves_cols_num = int(self._plotting_rect.height() / self._cell_size_y / 2)
+        for i in range(-halves_cols_num, halves_cols_num + 1):
+            y = self._qt_center_y + i * self._cell_size_y
+            # Draw lines
             painter.drawLine(self._plotting_rect.left(), int(y), self._plotting_rect.right(), int(y))
 
             # Draw cell's legend
             _, logic_y = self._to_logic_coordinates(0, y)
             text = f"{logic_y:.1f}"
             text_width = font_metrics.horizontalAdvance(text)
+
+            # Calculate start pos for text, shift it left by half of its width
             text_baseline_x = int(self._plotting_rect.left() - text_width - (self._plotting_rect.width() * 0.005))
             text_baseline_y = int((y + font_metrics.ascent() / 2))
-            painter.drawText(text_baseline_x, text_baseline_y, text)
 
-            # Advance further
-            y -= self._cell_size_y
+            painter.drawText(text_baseline_x, text_baseline_y, text)
 
         painter.end()
         self.update()

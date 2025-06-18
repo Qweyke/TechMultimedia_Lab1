@@ -53,6 +53,11 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addWidget(self.clear_btn)
 
+        self.grid_btn = QPushButton(self.centralwidget)
+        self.grid_btn.setObjectName(u"grid_btn")
+
+        self.verticalLayout.addWidget(self.grid_btn)
+
         self.cones_checkBox = QCheckBox(self.centralwidget)
         self.cones_checkBox.setObjectName(u"cones_checkBox")
         self.cones_checkBox.setEnabled(True)
@@ -146,6 +151,7 @@ class Ui_MainWindow(object):
         self.plot_btn.setText(QCoreApplication.translate("MainWindow", u"Plot", None))
         self.center_btn.setText(QCoreApplication.translate("MainWindow", u"Show center", None))
         self.clear_btn.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
+        self.grid_btn.setText(QCoreApplication.translate("MainWindow", u"Build std grid", None))
         self.cones_checkBox.setText(QCoreApplication.translate("MainWindow", u"Cones", None))
         self.func_lbl.setText(QCoreApplication.translate("MainWindow", u"Function ", None))
         self.func_lineEdit.setText(QCoreApplication.translate("MainWindow", u"cos(x)", None))

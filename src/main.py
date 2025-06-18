@@ -23,14 +23,16 @@ class MainApp(QMainWindow):
         # Connect btns
         self.ui.plot_btn.clicked.connect(self._plot_func)
         self.ui.clear_btn.clicked.connect(self._chart_widget.clear_canvas)
-        self.ui.center_btn.clicked.connect(self._chart_widget._create_axis_grid)
+        self.ui.grid_btn.clicked.connect(self._chart_widget._create_axis_grid)
+        self.ui.center_btn.clicked.connect(self._chart_widget.draw_central_dot)
 
     def _plot_func(self):
         x = symbols('x')
         expr = sympify(self.ui.func_lineEdit.text())
         func = lambdify(x, expr, modules=['math'])
 
-        self._chart_widget.draw_function_test(func, self.ui.from_spinBox.value(), self.ui.to_spinBox.value())
+        self._chart_widget.draw_function_test(func, self.ui.from_spinBox.value(), self.ui.to_spinBox.value(),
+                                              self.ui.step_spinBox.value())
 
         # if self.ui.cones_checkBox.isChecked():
         #     self._chart_widget.draw_function_cones(f, self.ui.from_spinBox.value(), self.ui.to_spinBox.value(),
